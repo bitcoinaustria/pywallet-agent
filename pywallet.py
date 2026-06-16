@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
-from __future__ import print_function
 pywversion="2.2"
 never_update=False
 
@@ -12,22 +11,13 @@ never_update=False
 
 
 import sys
-PY3 = sys.version_info.major > 2
 
 import warnings
 def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
 	return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, message)
 warnings.formatwarning = warning_on_one_line
-if PY3:
-	import _thread as thread
-	import functools
-	raw_input = input
-	xrange = range
-	long = int
-	unicode = str
-	reduce = functools.reduce
-else:
-	import thread
+import _thread as thread
+from functools import reduce
 
 missing_dep = []
 
@@ -65,23 +55,20 @@ import string
 import hashlib
 import random
 import urllib
-if PY3:
-	# Online features (--balance, --dumpwithbalance, --whitepaper, the
-	# blockexplorer/update helpers) call urllib.urlopen, which moved to
-	# urllib.request in Python 3. There its responses are bytes (Python 2
-	# returned str), but every call site does text processing (.split on HTML,
-	# .startswith, hex parsing, json.loads), so wrap urlopen to decode .read()
-	# to text. This keeps all call sites working unchanged while leaving Python 2
-	# untouched. Offline operations never reach this.
-	import urllib.request
-	class _Py3UrlopenText:
-		def __init__(self, _resp):
-			self._resp = _resp
-		def read(self, *a, **kw):
-			return self._resp.read(*a, **kw).decode('utf-8', 'replace')
-		def __getattr__(self, name):
-			return getattr(self._resp, name)
-	urllib.urlopen = lambda *a, **kw: _Py3UrlopenText(urllib.request.urlopen(*a, **kw))
+import urllib.request
+# Online features (--balance, --dumpwithbalance, --whitepaper, the
+# blockexplorer/update helpers) call urllib.urlopen, which is spelled
+# urllib.request.urlopen in Python 3 and returns bytes. Every call site does
+# text processing (.split on HTML, .startswith, hex parsing, json.loads), so
+# wrap urlopen to decode .read() to text. Offline operations never reach this.
+class _UrlopenText:
+	def __init__(self, _resp):
+		self._resp = _resp
+	def read(self, *a, **kw):
+		return self._resp.read(*a, **kw).decode('utf-8', 'replace')
+	def __getattr__(self, name):
+		return getattr(self._resp, name)
+urllib.urlopen = lambda *a, **kw: _UrlopenText(urllib.request.urlopen(*a, **kw))
 import math
 import base64
 import collections
@@ -101,9 +88,8 @@ def ordsix(x):
 	if x.__class__ == int:return x
 	return ord(x)
 def chrsix(x):
-	if not(x.__class__ in [int, long]):return x
-	if PY3:return bytes([x])
-	return chr(x)
+	if x.__class__ != int:return x
+	return bytes([x])
 
 def str_to_bytes(k):
 	if k.__class__ == str and not hasattr(k, 'decode'):
@@ -112,7 +98,7 @@ def str_to_bytes(k):
 def bytes_to_str(k):
 	if k.__class__ == bytes:
 		return k.decode()
-	if k.__class__ == unicode:
+	if k.__class__ == str:
 		return bytes_to_str(k.encode())
 	return k
 
@@ -276,7 +262,7 @@ def keccak_f(state):
 			for y in rangeH:A[x][y]=B[x][y]^~ B[(x+1)%W][y]&B[(x+2)%W][y]
 		A[0][0]^=RC
 	l=int(log(state.lanew,2));nr=12+2*l
-	for ir in xrange(nr):round(state.s,RoundConstants[ir])
+	for ir in range(nr):round(state.s,RoundConstants[ir])
 class KeccakState:
 	W=5;H=5;rangeW=range(W);rangeH=range(H)
 	@staticmethod
@@ -941,7 +927,7 @@ class Crypter_pycrypto( object ):
 		if nDerivationMethod != 0:
 			return 0
 		data = str_to_bytes(vKeyData) + vSalt
-		for i in xrange(nDerivIterations):
+		for i in range(nDerivIterations):
 			data = hashlib.sha512(data).digest()
 		self.SetKey(data[0:32])
 		self.SetIV(data[32:32+16])
@@ -1014,7 +1000,7 @@ class Crypter_pure(object):
 		if nDerivationMethod != 0:
 			return 0
 		data = str_to_bytes(vKeyData) + vSalt
-		for i in xrange(nDerivIterations):
+		for i in range(nDerivIterations):
 			data = hashlib.sha512(data).digest()
 		self.SetKey(data[0:32])
 		self.SetIV(data[32:32+16])
@@ -1527,7 +1513,7 @@ def deserialize_CAddress(d):
 def parse_BlockLocator(vds):
 	d = Bdict({ 'hashes' : [] })
 	nHashes = vds.read_compact_size()
-	for i in xrange(nHashes):
+	for i in range(nHashes):
 		d['hashes'].append(vds.read_bytes(32))
 		return d
 
@@ -1858,9 +1844,9 @@ def recov(device, passes, size=102400, inc=10240, outputdir='.'):
 		else:
 			print("Private keys not decrypted: %d"%len(ckeys_not_decrypted))
 			print("Trying all the remaining possibilities (%d) might take up to %d minutes."%(len(ckeys_not_decrypted)*len(passes)*len(mkeys),int(len(ckeys_not_decrypted)*len(passes)*len(mkeys)//calcspeed)))
-			cont=raw_input("Do you want to test them? (y/n): ")
+			cont=input("Do you want to test them? (y/n): ")
 			while len(cont)==0:
-				cont=raw_input("Do you want to test them? (y/n): ")
+				cont=input("Do you want to test them? (y/n): ")
 				if cont[0]=='y':
 					refused_to_test_all_pps=False
 					cpt=0
@@ -2056,7 +2042,7 @@ def read_device_size(size):
 	return r
 
 def md5_2(a):
-	if PY3 and isinstance(a, str):
+	if isinstance(a, str):
 		a = a.encode('utf-8')
 	return hashlib.md5(a).digest()
 
@@ -2307,11 +2293,11 @@ def parse_wallet(db, item_callback):
 				d['version'] = vds.read_int32()
 				n_vin = vds.read_compact_size()
 				d['txIn'] = []
-				for i in xrange(n_vin):
+				for i in range(n_vin):
 					d['txIn'].append(parse_TxIn(vds))
 				n_vout = vds.read_compact_size()
 				d['txOut'] = []
-				for i in xrange(n_vout):
+				for i in range(n_vout):
 					d['txOut'].append(parse_TxOut(vds))
 				d['lockTime'] = vds.read_uint32()
 				d['tx'] = binascii.hexlify(vds.input[start:vds.read_cursor])
@@ -2707,7 +2693,7 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 			json_db['minversion'] = d['minversion']
 
 		elif type == b"setting":
-			if not json_db.has_key('settings'):
+			if 'settings' not in json_db:
 				json_db['settings'] = Bdict({})
 			json_db["settings"][d['setting']] = d['value']
 
@@ -2724,7 +2710,7 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 			json_db['keys'].append({'addr' : addr, 'sec' : sec, 'hexsec' : hexsec, 'secret' : hexsec, 'pubkey':binascii.hexlify(d['public_key']), 'compressed':compressed, 'private':binascii.hexlify(d['private_key'])})
 
 		elif type == b"wkey":
-			if not json_db.has_key('wkey'): json_db['wkey'] = []
+			if 'wkey' not in json_db: json_db['wkey'] = Bdict({})
 			json_db['wkey']['created'] = d['created']
 
 		elif type == b"pool":
@@ -3496,7 +3482,7 @@ BASE32_ALPH='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 
 def witprog_to_bech32_addr(witprog, network, witv=0):
 	x = base64.b32encode(witprog)
-	if PY3:x = x.decode()
+	x = x.decode()
 	x = x.replace('=', '')
 	data = [witv]+list(map(lambda y:BASE32_ALPH.index(y), x))
 	combined = data + bech32_create_checksum(network.segwit_hrp, data)
@@ -3512,7 +3498,7 @@ def whitepaper():
 		rawtx = subprocess.check_output(["bitcoin-cli", "getrawtransaction", "54e48e5f5c656b26c3bca14a8c95aa583d07ebe84dde3b7dd4a78f4e4186e713"])
 		# subprocess returns bytes on Python 3; the rest of this function works
 		# on the hex as text (the urllib path is already decoded by the shim).
-		if PY3 and isinstance(rawtx, bytes):
+		if isinstance(rawtx, bytes):
 			rawtx = rawtx.decode('utf-8', 'replace')
 	except:
 		rawtx = urllib.urlopen("https://blockchain.info/tx/54e48e5f5c656b26c3bca14a8c95aa583d07ebe84dde3b7dd4a78f4e4186e713?format=hex").read()
@@ -3854,14 +3840,13 @@ class TestPywallet(unittest.TestCase):
 		warnings.simplefilter('ignore')
 
 	def _patch_urlopen(self, data):
-		# Replace urllib.request.urlopen (the source the PY3 shim wraps) so the
+		# Replace urllib.request.urlopen (the source the urllib shim wraps) so the
 		# decode path is exercised end to end; auto-restored on test teardown.
 		import urllib.request
 		orig = urllib.request.urlopen
 		urllib.request.urlopen = lambda *a, **kw: _FakeHTTPResponse(data)
 		self.addCleanup(lambda: setattr(urllib.request, 'urlopen', orig))
 
-	@unittest.skipUnless(PY3, 'urllib text shim is Python 3 only')
 	def test_py3_urlopen_decodes_to_text(self):
 		# The shim every online call site relies on must turn the bytes that
 		# urllib.request returns into str (utf-8), so .split/.startswith work.
@@ -3870,7 +3855,6 @@ class TestPywallet(unittest.TestCase):
 		self.assertIsInstance(body, str)
 		self.assertEqual(body, 'hello é')
 
-	@unittest.skipUnless(PY3, 'online bytes/str handling is Python 3 specific')
 	def test_balance_handles_text_response(self):
 		# Regression: balance() did query_result.startswith("error") on bytes,
 		# raising TypeError after any successful response on Python 3.
@@ -4250,12 +4234,12 @@ if __name__ == '__main__':
 		for pbk in encrypted_keys[::-1]:
 			p2pkh, p2wpkh, witaddr, _ = pubkey_info(pbk['public_key'], network)
 			for addr in [p2pkh, p2wpkh, witaddr]:
-				has_balance = raw_input(addr + ': ') != ''
+				has_balance = input(addr + ': ') != ''
 				if has_balance:
 					print('')
 					break
 			if not has_balance:
-				if raw_input("\nAre you REALLY sure the 3 addresses above have an empty balance? (type 'YES') ") == 'YES':
+				if input("\nAre you REALLY sure the 3 addresses above have an empty balance? (type 'YES') ") == 'YES':
 					output_db = open_wallet(db_env, minimal_wallet, True)
 					output_db.put(*mkey)
 					output_db.put(pbk['__key__'], pbk['__value__'])
