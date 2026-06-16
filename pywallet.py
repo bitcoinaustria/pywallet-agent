@@ -2361,6 +2361,9 @@ def parse_wallet(db, item_callback):
 			elif type == b"ckey":
 				d['public_key'] = kds.read_bytes(kds.read_compact_size())
 				d['encrypted_private_key'] = vds.read_bytes(vds.read_compact_size())
+			elif type == b"cscript":
+				d['scripthash'] = kds.read_bytes(20)
+				d['script'] = vds.read_bytes(vds.read_compact_size())
 			elif type == b"mkey":
 				d['nID'] = kds.read_uint32()
 				d['encrypted_key'] = vds.read_string()
@@ -2692,6 +2695,7 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 	json_db['names'] = Bdict({})
 	json_db['ckey'] = []
 	json_db['mkey'] = Bdict({})
+	json_db['scripts'] = []
 
 	def item_callback(type, d):
 		if type == b"tx":
@@ -2767,6 +2771,14 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 					sys.exit(1)
 				masterkey = crypter.Decrypt(d['encrypted_key'])
 				crypter.SetKey(masterkey)
+
+		elif type == b"cscript":
+			# P2SH redeemscript: the key holds the script's hash160 (CScriptID),
+			# which is exactly the P2SH address hash. Emit the P2SH address.
+			json_db['scripts'].append({
+				'addr': hash_160_to_bc_address(d['scripthash'], network.p2sh_prefix),
+				'scripthash': binascii.hexlify(d['scripthash']),
+				'redeemscript': binascii.hexlify(d['script'])})
 
 		else:
 			json_db[type] = 'unsupported'
@@ -4275,13 +4287,13 @@ if __name__ == '__main__':
 		#exit(1)
 
 	if options.find_address:
-		addr_data = filter(lambda x:x["addr"] == options.find_address, json_db["keys"]+json_db["pool"])
+		addr_data = filter(lambda x:x["addr"] == options.find_address, json_db["keys"]+json_db["pool"]+json_db["scripts"])
 		print(json.dumps(list(addr_data), sort_keys=True, indent=4))
 		exit()
 
 	if options.dump:
 		if options.dumpformat == 'addr':
-			addrs = list(map(lambda x:x["addr"], json_db["keys"]+json_db["pool"]))
+			addrs = list(map(lambda x:x["addr"], json_db["keys"]+json_db["pool"]+json_db["scripts"]))
 			json_db = addrs
 		wallet = json.dumps(json_db, sort_keys=True, indent=4)
 		print(wallet)

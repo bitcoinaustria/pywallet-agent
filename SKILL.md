@@ -42,6 +42,8 @@ Dump only addresses:
 ```sh
 python3 pywallet.py --dumpwallet --dumpformat addr --wallet /path/to/wallet.dat
 ```
+The dump includes P2SH (`3…`) addresses from the wallet's redeemscripts under a
+`scripts` section (and in the `addr` list).
 
 Decrypt an encrypted wallet during dump:
 ```sh
