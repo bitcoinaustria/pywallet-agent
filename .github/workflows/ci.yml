@@ -1,0 +1,71 @@
+name: CI
+
+# Tests the offline core on a range of Python 3 versions, and on a version
+# tag (vX.Y.Z) publishes the single-file script plus reproducible checksums
+# as a GitHub Release. The build runs online; the published artifact installs
+# and runs fully offline.
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege by default; the release job opts into write below.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Self-tests (Python ${{ matrix.python-version }})
+    # Pinned runner image (not ubuntu-latest) so the environment is stable.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+    steps:
+      # Pinned to full commit SHAs (hardened, reproducible supply chain).
+      # To update: set the new release's commit SHA and bump the version comment.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      # The core needs NO third-party packages; run the embedded self-tests.
+      - name: Run offline self-tests (no dependencies)
+        run: python pywallet.py --tests
+
+  release:
+    name: Publish script + checksums
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # needed to create the GitHub Release
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Generate reproducible checksums
+        # Deterministic: depends only on the committed file contents, so anyone
+        # can reproduce it with `git checkout <tag> && sha256sum pywallet.py`.
+        run: |
+          sha256sum pywallet.py > SHA256SUMS
+          cat SHA256SUMS
+      - name: Create GitHub Release with script + checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Single-file, fully offline install. The core (key inspection,"
+            echo "BIP32/BIP39 derivation, --tests) needs no dependencies. Reading a"
+            echo "wallet.dat or writing a recovered one needs a Berkeley DB binding."
+            echo
+            echo "Verify the download:"
+            echo '    sha256sum -c SHA256SUMS'
+            echo
+            echo "Reproduce the checksum from source:"
+            echo "    git checkout ${GITHUB_REF_NAME} && sha256sum pywallet.py"
+          } > release-notes.md
+          gh release create "${GITHUB_REF_NAME}" pywallet.py SHA256SUMS \
+            --title "pywallet ${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md
