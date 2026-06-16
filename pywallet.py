@@ -2710,7 +2710,7 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 			json_db['keys'].append({'addr' : addr, 'sec' : sec, 'hexsec' : hexsec, 'secret' : hexsec, 'pubkey':binascii.hexlify(d['public_key']), 'compressed':compressed, 'private':binascii.hexlify(d['private_key'])})
 
 		elif type == b"wkey":
-			if 'wkey' not in json_db: json_db['wkey'] = []
+			if 'wkey' not in json_db: json_db['wkey'] = Bdict({})
 			json_db['wkey']['created'] = d['created']
 
 		elif type == b"pool":
