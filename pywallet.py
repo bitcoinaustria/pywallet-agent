@@ -2775,10 +2775,12 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 		elif type == b"cscript":
 			# P2SH redeemscript: the key holds the script's hash160 (CScriptID),
 			# which is exactly the P2SH address hash. Emit the P2SH address.
+			# Store the hex fields as str so the scripts section is JSON
+			# serializable on its own (the addr is already str).
 			json_db['scripts'].append({
 				'addr': hash_160_to_bc_address(d['scripthash'], network.p2sh_prefix),
-				'scripthash': binascii.hexlify(d['scripthash']),
-				'redeemscript': binascii.hexlify(d['script'])})
+				'scripthash': binascii.hexlify(d['scripthash']).decode('ascii'),
+				'redeemscript': binascii.hexlify(d['script']).decode('ascii')})
 
 		else:
 			json_db[type] = 'unsupported'
