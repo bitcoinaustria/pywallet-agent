@@ -2184,10 +2184,10 @@ class BCDataStream(object):
 
 	def write_string(self, string):
 		# Length-encoded as with read-string
-		# On Python 3 a text label (e.g. a 'name' record) must be encoded to
-		# bytes before it is appended to the bytes buffer. Gate on PY3: on
-		# Python 2 binary fields are already str and must pass through untouched.
-		if PY3 and isinstance(string, str):
+		# A Python 3 text label (e.g. a 'name' record) must be encoded to bytes
+		# before being appended to the bytes buffer. Encode only genuine text:
+		# on Python 2 binary fields are str (== bytes) and pass through untouched.
+		if isinstance(string, str) and not isinstance(string, bytes):
 			string = string.encode('utf-8')
 		self.write_compact_size(len(string))
 		self.write(string)
@@ -4135,7 +4135,9 @@ if __name__ == '__main__':
 
 		print("\n\nImporting:")
 		for i,sec in enumerate(recoveredKeys):
-			sec=binascii.hexlify(sec).decode()
+			sec=binascii.hexlify(sec)
+			if not isinstance(sec, str):   # bytes on Python 3 -> hex str; already str on Python 2
+				sec=sec.decode('ascii')
 			print("Importing key %4d/%d"%(i+1, len(recoveredKeys)))
 			importprivkey(db, sec, "recovered: %s"%sec, None, False)
 			importprivkey(db, sec+'01', "recovered: %s"%sec, None, False)
