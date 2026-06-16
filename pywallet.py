@@ -1040,14 +1040,14 @@ if crypter is None:
 		from Crypto.Cipher import AES
 		crypter = Crypter_pycrypto()
 	except:
-		try:
-			import ctypes
-			import ctypes.util
-			ssl = ctypes.cdll.LoadLibrary (ctypes.util.find_library ('ssl') or 'libeay32')
-			crypter = Crypter_ssl()
-		except:
-			crypter = Crypter_pure()
-			logging.warning("pycrypto or libssl not found, decryption may be slow")
+		# The ctypes/OpenSSL backend (Crypter_ssl) is unreliable on modern
+		# systems: its EVP_* calls declare no restype/argtypes, so on 64-bit the
+		# returned context pointers are truncated to a C int (-> segfault), and
+		# EVP_CIPHER_CTX_init/cleanup were removed in OpenSSL 3.x. Fall back to
+		# the embedded pure-Python AES, which always works (just slower). Install
+		# pycryptodome (provides Crypto.Cipher.AES) for speed.
+		crypter = Crypter_pure()
+		logging.warning("pycrypto not found, using slower pure-Python AES (install pycryptodome for speed)")
 
 
 ##########################################
