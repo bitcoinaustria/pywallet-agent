@@ -1889,7 +1889,7 @@ def recov(device, passes, size=102400, inc=10240, outputdir='.'):
 								cpt+=1
 
 		print("")
-		ckeys_not_decrypted=filter(lambda x:x[1].privkey==None, ckeys)
+		ckeys_not_decrypted=list(filter(lambda x:x[1].privkey==None, ckeys))
 		if len(ckeys_not_decrypted)==0:
 			print("All the found encrypted private keys have been finally decrypted.")
 		elif not refused_to_test_all_pps:
@@ -2184,6 +2184,8 @@ class BCDataStream(object):
 
 	def write_string(self, string):
 		# Length-encoded as with read-string
+		if isinstance(string, str):
+			string = string.encode('utf-8')
 		self.write_compact_size(len(string))
 		self.write(string)
 
@@ -4130,7 +4132,7 @@ if __name__ == '__main__':
 
 		print("\n\nImporting:")
 		for i,sec in enumerate(recoveredKeys):
-			sec=binascii.hexlify(sec)
+			sec=binascii.hexlify(sec).decode()
 			print("Importing key %4d/%d"%(i+1, len(recoveredKeys)))
 			importprivkey(db, sec, "recovered: %s"%sec, None, False)
 			importprivkey(db, sec+'01', "recovered: %s"%sec, None, False)
