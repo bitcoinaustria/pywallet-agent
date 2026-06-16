@@ -2184,7 +2184,10 @@ class BCDataStream(object):
 
 	def write_string(self, string):
 		# Length-encoded as with read-string
-		if isinstance(string, str):
+		# On Python 3 a text label (e.g. a 'name' record) must be encoded to
+		# bytes before it is appended to the bytes buffer. Gate on PY3: on
+		# Python 2 binary fields are already str and must pass through untouched.
+		if PY3 and isinstance(string, str):
 			string = string.encode('utf-8')
 		self.write_compact_size(len(string))
 		self.write(string)
