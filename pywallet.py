@@ -2361,6 +2361,9 @@ def parse_wallet(db, item_callback):
 			elif type == b"ckey":
 				d['public_key'] = kds.read_bytes(kds.read_compact_size())
 				d['encrypted_private_key'] = vds.read_bytes(vds.read_compact_size())
+			elif type == b"cscript":
+				d['scripthash'] = kds.read_bytes(20)
+				d['script'] = vds.read_bytes(vds.read_compact_size())
 			elif type == b"mkey":
 				d['nID'] = kds.read_uint32()
 				d['encrypted_key'] = vds.read_string()
@@ -2692,6 +2695,7 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 	json_db['names'] = Bdict({})
 	json_db['ckey'] = []
 	json_db['mkey'] = Bdict({})
+	json_db['scripts'] = []
 
 	def item_callback(type, d):
 		if type == b"tx":
@@ -2768,6 +2772,21 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 				masterkey = crypter.Decrypt(d['encrypted_key'])
 				crypter.SetKey(masterkey)
 
+		elif type == b"cscript":
+			# P2SH redeemscript: the key holds the script's hash160 (CScriptID),
+			# which is exactly the P2SH address hash. Emit the P2SH address only
+			# when the network defines a P2SH prefix (a custom --otherversion
+			# network may not). Store hex fields as str so the scripts section is
+			# JSON serializable on its own.
+			if network.p2sh_prefix is not None:
+				script_addr = hash_160_to_bc_address(d['scripthash'], network.p2sh_prefix)
+			else:
+				script_addr = None
+			json_db['scripts'].append({
+				'addr': script_addr,
+				'scripthash': binascii.hexlify(d['scripthash']).decode('ascii'),
+				'redeemscript': binascii.hexlify(d['script']).decode('ascii')})
+
 		else:
 			json_db[type] = 'unsupported'
 			if type not in b'keymeta'.split():
@@ -2794,6 +2813,10 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 			k["reserve"] = 1
 			list_of_reserve_not_in_pool.append(k['pubkey'])
 
+	if include_balance:
+		for s in json_db['scripts']:
+			if s['addr'] is not None:
+				s["balance"] = balance(balance_site, s['addr'])
 
 	def rnip_callback(a):
 		list_of_reserve_not_in_pool.remove(a['public_key_hex'])
@@ -4275,13 +4298,13 @@ if __name__ == '__main__':
 		#exit(1)
 
 	if options.find_address:
-		addr_data = filter(lambda x:x["addr"] == options.find_address, json_db["keys"]+json_db["pool"])
+		addr_data = filter(lambda x:x["addr"] == options.find_address, json_db["keys"]+json_db["pool"]+json_db["scripts"])
 		print(json.dumps(list(addr_data), sort_keys=True, indent=4))
 		exit()
 
 	if options.dump:
 		if options.dumpformat == 'addr':
-			addrs = list(map(lambda x:x["addr"], json_db["keys"]+json_db["pool"]))
+			addrs = [x["addr"] for x in json_db["keys"]+json_db["pool"]+json_db["scripts"] if x["addr"] is not None]
 			json_db = addrs
 		wallet = json.dumps(json_db, sort_keys=True, indent=4)
 		print(wallet)
