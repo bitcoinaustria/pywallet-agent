@@ -1,0 +1,21 @@
+# pywallet runs fully offline. Its core -- key inspection (--info),
+# BIP32/BIP39 derivation, key recovery and --tests -- needs NO third-party
+# packages at all. Install the optional extras below only if you need them.
+#
+# Recommended setup (avoids the PEP 668 "externally-managed-environment"
+# error on Homebrew/Debian system Python):
+#
+#     python3 -m venv .venv
+#     source .venv/bin/activate
+#     pip install -r requirements.txt
+
+# Read / write a real wallet.dat (Berkeley DB binding).
+# 'berkeleydb' is the maintained successor of 'bsddb3' (either works; the code
+# tries bsddb, then bsddb3, then berkeleydb). Needs the Berkeley DB system lib:
+#   macOS:  brew install berkeley-db
+#           BERKELEYDB_DIR=$(brew --prefix berkeley-db) pip install berkeleydb
+#   Debian: sudo apt install libdb-dev
+berkeleydb
+
+# Sign / verify messages (pure Python, no system lib needed).
+ecdsa

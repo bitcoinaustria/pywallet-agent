@@ -38,7 +38,10 @@ except:
 	try:
 		from bsddb3.db import *
 	except:
-		missing_dep.append('bsddb')
+		try:
+			from berkeleydb.db import *
+		except:
+			missing_dep.append('bsddb')
 
 import os, sys, time, re
 pyw_filename = os.path.basename(__file__)
@@ -4077,7 +4080,9 @@ if __name__ == '__main__':
 		exit(0)
 
 
-	if 'bsddb' in missing_dep:
+	if 'bsddb' in missing_dep and options.keyinfo is None and not options.random_key:
+		# Berkeley DB is only needed for wallet.dat operations; offline key
+		# inspection (--info / --random_key) works without it.
 		print("pywallet needs 'bsddb' package to run, please install it")
 		exit(0)
 

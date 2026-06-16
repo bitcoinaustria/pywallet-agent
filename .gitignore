@@ -1,0 +1,9 @@
+# Python runtime artifacts
+__pycache__/
+*.pyc
+
+# Virtualenv (see README / requirements.txt)
+.venv/
+
+# Local tooling state (not project guidance; AGENTS.md/claude.md are tracked)
+.claude/scheduled_tasks.lock
