@@ -19,7 +19,6 @@ def warning_on_one_line(message, category, filename, lineno, file=None, line=Non
 	return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, message)
 warnings.formatwarning = warning_on_one_line
 if PY3:
-	warnings.warn("Python 3 support is still experimental, you may encounter bugs")
 	import _thread as thread
 	import functools
 	raw_input = input
@@ -66,6 +65,12 @@ import string
 import hashlib
 import random
 import urllib
+if PY3:
+	# Online features (--balance, --whitepaper) call urllib.urlopen, which moved
+	# to urllib.request in Python 3. Shim it so all call sites work unchanged,
+	# while keeping Python 2 untouched. Offline operations never reach this.
+	import urllib.request
+	urllib.urlopen = urllib.request.urlopen
 import math
 import base64
 import collections

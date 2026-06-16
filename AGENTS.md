@@ -59,10 +59,11 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt   # both deps are optional; see the file
 ```
 
-The online features (`--balance`, `--whitepaper`) use `urllib.urlopen`, which
-is Python-2 spelling and will `AttributeError` on Python 3 — left as-is on
-purpose because they are out of scope for offline use. Do not "fix" them
-unless explicitly asked; doing so does not affect offline operation.
+The online features (`--balance`, `--whitepaper`) call `urllib.urlopen`, the
+Python-2 spelling. A small `PY3` shim aliases it to `urllib.request.urlopen`
+so those features work on Python 3 without rewriting each call site or
+breaking Python 2. This is purely an online-path fix — offline operations
+never reach `urllib`.
 
 ## Running
 
