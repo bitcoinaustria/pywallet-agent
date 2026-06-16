@@ -1,5 +1,5 @@
 Requirements:
-- Python 3 (3.9+ recommended). Python 2 still works but is unsupported.
+- Python 3, version 3.9 or newer. (Python 2 is no longer supported.)
 
 pywallet is a single self-contained script and runs fully offline.
 Key inspection and BIP32/BIP39 derivation need no external packages at all.

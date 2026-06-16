@@ -34,11 +34,11 @@ package, no build step, and no `setup.py`. `README` is the user-facing doc.
 
 ## Modernization goal
 
-Make it run cleanly on current Python 3 (3.9+, tested on 3.14) **without
-MacPorts or other legacy tooling**, while keeping the diff tiny. The script
-already carries `PY3` compatibility shims near the top (`raw_input`, `xrange`,
-`long`, `unicode`, `reduce`, etc.) — extend those patterns rather than
-inventing new ones.
+Runs on current Python 3 (3.9+, tested on 3.14) **without MacPorts or other
+legacy tooling**. The code is now **Python 3 only**: the former Python 2/3
+compatibility shims (`raw_input`, `xrange`, `long`, `unicode`, `reduce`, and
+the `PY3` flag) have been removed in favour of the Python 3 builtins. Do not
+reintroduce Python 2 shims.
 
 Dependency notes:
 - Core key/BIP32/BIP39 logic uses pywallet's **embedded** elliptic curve
@@ -62,11 +62,10 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt   # both deps are optional; see the file
 ```
 
-The online features (`--balance`, `--whitepaper`) call `urllib.urlopen`, the
-Python-2 spelling. A small `PY3` shim aliases it to `urllib.request.urlopen`
-so those features work on Python 3 without rewriting each call site or
-breaking Python 2. This is purely an online-path fix — offline operations
-never reach `urllib`.
+The online features (`--balance`, `--whitepaper`) call `urllib.urlopen` (the
+old spelling). A small wrapper aliases it to `urllib.request.urlopen` and
+decodes responses to text, so every call site works unchanged on Python 3.
+This is purely an online-path fix — offline operations never reach `urllib`.
 
 ## Running
 
@@ -99,8 +98,8 @@ result: `OK`.
 ## Code style
 
 - **Tabs** for indentation (not spaces). Match the file.
-- Python 2/3 compatible where the existing code is; gate 3-only code behind
-  the `PY3` flag like the existing shims.
+- Python 3 only (3.9+). Use Python 3 builtins directly; do not add back
+  Python 2 compatibility shims or a `PY3` flag.
 - No new third-party dependencies unless unavoidable, and only as optional
   (caught) imports that append to `missing_dep`.
 
