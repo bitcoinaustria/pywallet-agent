@@ -1,10 +1,12 @@
 Requirements:
-- Python 3 (3.8+ recommended). Python 2 still works but is unsupported.
+- Python 3 (3.9+ recommended). Python 2 still works but is unsupported.
 
 pywallet is a single self-contained script and runs fully offline.
-Key inspection, BIP32/BIP39 derivation and key recovery need no external
-packages at all. Optional extras (see Dependencies below):
+Key inspection and BIP32/BIP39 derivation need no external packages at all.
+Optional extras (see Dependencies below):
 - reading/writing a real wallet.dat: a Berkeley DB binding
+- recovering keys: scanning runs with no deps, but writing the recovered
+  wallet.dat needs a Berkeley DB binding (--recover creates a new wallet)
 - signing/verifying messages: the 'ecdsa' package
 
 Install (offline & verifiable):

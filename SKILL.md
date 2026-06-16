@@ -12,9 +12,11 @@ seeds, or passphrases anywhere the user didn't ask for.
 
 ## Setup
 
-Nothing is required for key inspection, BIP32/BIP39 derivation, and recovery —
-these run with zero dependencies. Optional extras need a virtualenv (modern
-system Python rejects bare `pip install` under PEP 668):
+Nothing is required for key inspection and BIP32/BIP39 derivation — these run
+with zero dependencies. Recovery (`--recover`) scans with no deps but writes
+the recovered keys into a new `wallet.dat`, so end-to-end it needs a Berkeley
+DB binding (see below). Optional extras need a virtualenv (modern system Python
+rejects bare `pip install` under PEP 668):
 
 ```sh
 python3 -m venv .venv && source .venv/bin/activate

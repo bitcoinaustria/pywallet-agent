@@ -66,11 +66,22 @@ import hashlib
 import random
 import urllib
 if PY3:
-	# Online features (--balance, --whitepaper) call urllib.urlopen, which moved
-	# to urllib.request in Python 3. Shim it so all call sites work unchanged,
-	# while keeping Python 2 untouched. Offline operations never reach this.
+	# Online features (--balance, --dumpwithbalance, --whitepaper, the
+	# blockexplorer/update helpers) call urllib.urlopen, which moved to
+	# urllib.request in Python 3. There its responses are bytes (Python 2
+	# returned str), but every call site does text processing (.split on HTML,
+	# .startswith, hex parsing, json.loads), so wrap urlopen to decode .read()
+	# to text. This keeps all call sites working unchanged while leaving Python 2
+	# untouched. Offline operations never reach this.
 	import urllib.request
-	urllib.urlopen = urllib.request.urlopen
+	class _Py3UrlopenText:
+		def __init__(self, _resp):
+			self._resp = _resp
+		def read(self, *a, **kw):
+			return self._resp.read(*a, **kw).decode('utf-8', 'replace')
+		def __getattr__(self, name):
+			return getattr(self._resp, name)
+	urllib.urlopen = lambda *a, **kw: _Py3UrlopenText(urllib.request.urlopen(*a, **kw))
 import math
 import base64
 import collections
@@ -2045,6 +2056,8 @@ def read_device_size(size):
 	return r
 
 def md5_2(a):
+	if PY3 and isinstance(a, str):
+		a = a.encode('utf-8')
 	return hashlib.md5(a).digest()
 
 def md5_file(nf):
@@ -3497,6 +3510,10 @@ def p2sh_script_to_addr(script):
 def whitepaper():
 	try:
 		rawtx = subprocess.check_output(["bitcoin-cli", "getrawtransaction", "54e48e5f5c656b26c3bca14a8c95aa583d07ebe84dde3b7dd4a78f4e4186e713"])
+		# subprocess returns bytes on Python 3; the rest of this function works
+		# on the hex as text (the urllib path is already decoded by the shim).
+		if PY3 and isinstance(rawtx, bytes):
+			rawtx = rawtx.decode('utf-8', 'replace')
 	except:
 		rawtx = urllib.urlopen("https://blockchain.info/tx/54e48e5f5c656b26c3bca14a8c95aa583d07ebe84dde3b7dd4a78f4e4186e713?format=hex").read()
 	outputs = rawtx.split("0100000000000000")
@@ -3823,10 +3840,49 @@ def dump_bip32_privkeys(xpriv, paths='m/0', fmt='addr', **kw):
 	for child in xpriv.multi_ckd_xpriv(paths):
 		print('%s: %s'%(child.fullpath, dump_key(keyinfo(child, kw.get('network'), False, True))))
 
+class _FakeHTTPResponse:
+	# Mimics http.client.HTTPResponse: on Python 3 .read() returns bytes.
+	# Used by the online-path tests to avoid real network access.
+	def __init__(self, data):
+		self._data = data
+	def read(self, *a, **kw):
+		return self._data
+
 class TestPywallet(unittest.TestCase):
 	def setUp(self):
 		super(TestPywallet, self).setUp()
 		warnings.simplefilter('ignore')
+
+	def _patch_urlopen(self, data):
+		# Replace urllib.request.urlopen (the source the PY3 shim wraps) so the
+		# decode path is exercised end to end; auto-restored on test teardown.
+		import urllib.request
+		orig = urllib.request.urlopen
+		urllib.request.urlopen = lambda *a, **kw: _FakeHTTPResponse(data)
+		self.addCleanup(lambda: setattr(urllib.request, 'urlopen', orig))
+
+	@unittest.skipUnless(PY3, 'urllib text shim is Python 3 only')
+	def test_py3_urlopen_decodes_to_text(self):
+		# The shim every online call site relies on must turn the bytes that
+		# urllib.request returns into str (utf-8), so .split/.startswith work.
+		self._patch_urlopen(b'hello \xc3\xa9')
+		body = urllib.urlopen('http://example.invalid/').read()
+		self.assertIsInstance(body, str)
+		self.assertEqual(body, 'hello é')
+
+	@unittest.skipUnless(PY3, 'online bytes/str handling is Python 3 specific')
+	def test_balance_handles_text_response(self):
+		# Regression: balance() did query_result.startswith("error") on bytes,
+		# raising TypeError after any successful response on Python 3.
+		self._patch_urlopen(b'12.5')
+		self.assertEqual(balance('http://site.invalid/', 'someaddr'), '12.5')
+
+	def test_md5_2_accepts_text_and_bytes(self):
+		# md5_2 feeds hashlib.md5, which rejects str on Python 3; the online
+		# md5 helpers (md5_onlinefile/update_pyw) now pass text, so it must cope.
+		expected = hashlib.md5(b'abc').digest()
+		self.assertEqual(md5_2(b'abc'), expected)
+		self.assertEqual(md5_2('abc'), expected)
 	def test_btc_privkey_1(self):
 		key = keyinfo('1', network=network_bitcoin, force_compressed=False)
 		self.assertEqual(key.addr, '1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm')
@@ -4085,9 +4141,10 @@ if __name__ == '__main__':
 		exit(0)
 
 
-	if 'bsddb' in missing_dep and options.keyinfo is None and not options.random_key:
+	if 'bsddb' in missing_dep and options.keyinfo is None and not options.random_key and options.key_balance is None:
 		# Berkeley DB is only needed for wallet.dat operations; offline key
-		# inspection (--info / --random_key) works without it.
+		# inspection (--info / --random_key) and the online balance lookup
+		# (--balance, no wallet.dat involved) work without it.
 		print("pywallet needs 'bsddb' package to run, please install it")
 		exit(0)
 

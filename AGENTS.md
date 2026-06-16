@@ -34,16 +34,19 @@ package, no build step, and no `setup.py`. `README` is the user-facing doc.
 
 ## Modernization goal
 
-Make it run cleanly on current Python 3 (3.8+, tested on 3.14) **without
+Make it run cleanly on current Python 3 (3.9+, tested on 3.14) **without
 MacPorts or other legacy tooling**, while keeping the diff tiny. The script
 already carries `PY3` compatibility shims near the top (`raw_input`, `xrange`,
 `long`, `unicode`, `reduce`, etc.) — extend those patterns rather than
 inventing new ones.
 
 Dependency notes:
-- Core key/BIP32/BIP39/recovery logic uses pywallet's **embedded** elliptic
-  curve implementation and needs **no external packages**. Offline key
-  inspection (`--info`, `--random_key`) works with zero deps installed.
+- Core key/BIP32/BIP39 logic uses pywallet's **embedded** elliptic curve
+  implementation and needs **no external packages**. Offline key inspection
+  (`--info`, `--random_key`) works with zero deps installed.
+- Key recovery (`--recover`) *scans* with no deps, but it always writes the
+  recovered keys into a new `wallet.dat` via `create_new_wallet()`, which needs
+  a Berkeley DB binding — so end-to-end `--recover` requires one too.
 - Reading/writing a real `wallet.dat` needs a Berkeley DB binding. Import
   order tried in code: `bsddb` (legacy), then `bsddb3`, then `berkeleydb`
   (the maintained successor — install with `pip install berkeleydb`).
@@ -86,9 +89,12 @@ Self-tests live in the `TestPywallet` class and run via:
 python3 pywallet.py --tests
 ```
 
-They cover private-key parsing, BIP32 test vectors, BIP39 test vectors and
-recovery, and require **no** external dependencies or network. Run them after
-any change to the crypto/derivation paths. Expected result: `OK`.
+They cover private-key parsing, BIP32/BIP39 test vectors, and the Python 3
+online str/bytes handling (the urllib decode shim, `balance()`, `md5_2`; the
+network is mocked, so no real requests). They require **no** external
+dependencies or network. Note: the recovery test is currently a placeholder.
+Run them after any change to the crypto/derivation or online paths. Expected
+result: `OK`.
 
 ## Code style
 
