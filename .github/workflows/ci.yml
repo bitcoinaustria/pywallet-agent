@@ -26,10 +26,10 @@ jobs:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
-      # For a hardened supply chain, replace these tags with full commit SHAs
-      # (e.g. actions/checkout@<sha>  # v6.x.x).
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      # Pinned to full commit SHAs (hardened, reproducible supply chain).
+      # To update: set the new release's commit SHA and bump the version comment.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
       # The core needs NO third-party packages; run the embedded self-tests.
@@ -44,7 +44,7 @@ jobs:
     permissions:
       contents: write   # needed to create the GitHub Release
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - name: Generate reproducible checksums
         # Deterministic: depends only on the committed file contents, so anyone
         # can reproduce it with `git checkout <tag> && sha256sum pywallet.py`.
