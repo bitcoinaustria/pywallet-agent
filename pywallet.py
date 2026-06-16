@@ -2774,11 +2774,16 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 
 		elif type == b"cscript":
 			# P2SH redeemscript: the key holds the script's hash160 (CScriptID),
-			# which is exactly the P2SH address hash. Emit the P2SH address.
-			# Store the hex fields as str so the scripts section is JSON
-			# serializable on its own (the addr is already str).
+			# which is exactly the P2SH address hash. Emit the P2SH address only
+			# when the network defines a P2SH prefix (a custom --otherversion
+			# network may not). Store hex fields as str so the scripts section is
+			# JSON serializable on its own.
+			if network.p2sh_prefix is not None:
+				script_addr = hash_160_to_bc_address(d['scripthash'], network.p2sh_prefix)
+			else:
+				script_addr = None
 			json_db['scripts'].append({
-				'addr': hash_160_to_bc_address(d['scripthash'], network.p2sh_prefix),
+				'addr': script_addr,
 				'scripthash': binascii.hexlify(d['scripthash']).decode('ascii'),
 				'redeemscript': binascii.hexlify(d['script']).decode('ascii')})
 
@@ -2808,6 +2813,10 @@ def read_wallet(json_db, db_env, walletfile, print_wallet, print_wallet_transact
 			k["reserve"] = 1
 			list_of_reserve_not_in_pool.append(k['pubkey'])
 
+	if include_balance:
+		for s in json_db['scripts']:
+			if s['addr'] is not None:
+				s["balance"] = balance(balance_site, s['addr'])
 
 	def rnip_callback(a):
 		list_of_reserve_not_in_pool.remove(a['public_key_hex'])
@@ -4295,7 +4304,7 @@ if __name__ == '__main__':
 
 	if options.dump:
 		if options.dumpformat == 'addr':
-			addrs = list(map(lambda x:x["addr"], json_db["keys"]+json_db["pool"]+json_db["scripts"]))
+			addrs = [x["addr"] for x in json_db["keys"]+json_db["pool"]+json_db["scripts"] if x["addr"] is not None]
 			json_db = addrs
 		wallet = json.dumps(json_db, sort_keys=True, indent=4)
 		print(wallet)
