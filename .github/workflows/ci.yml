@@ -27,9 +27,9 @@ jobs:
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
       # For a hardened supply chain, replace these tags with full commit SHAs
-      # (e.g. actions/checkout@<sha>  # v4.x.x).
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # (e.g. actions/checkout@<sha>  # v6.x.x).
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       # The core needs NO third-party packages; run the embedded self-tests.
@@ -44,7 +44,7 @@ jobs:
     permissions:
       contents: write   # needed to create the GitHub Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Generate reproducible checksums
         # Deterministic: depends only on the committed file contents, so anyone
         # can reproduce it with `git checkout <tag> && sha256sum pywallet.py`.
@@ -57,7 +57,8 @@ jobs:
         run: |
           {
             echo "Single-file, fully offline install. The core (key inspection,"
-            echo "BIP32/BIP39 derivation, recovery, --tests) needs no dependencies."
+            echo "BIP32/BIP39 derivation, --tests) needs no dependencies. Reading a"
+            echo "wallet.dat or writing a recovered one needs a Berkeley DB binding."
             echo
             echo "Verify the download:"
             echo '    sha256sum -c SHA256SUMS'
