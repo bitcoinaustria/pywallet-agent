@@ -116,6 +116,17 @@ def bytes_to_str(k):
 		return bytes_to_str(k.encode())
 	return k
 
+def json_default(o):
+	# json.dumps default= hook. The wallet dict holds binascii.hexlify(...)
+	# values, which are ASCII bytes on Python 3 and are not serializable by the
+	# stdlib json module; decode them to the equivalent hex string.
+	if o.__class__ in (bytes, bytearray):
+		try:
+			return o.decode('ascii')
+		except UnicodeDecodeError:
+			return binascii.hexlify(o).decode('ascii')
+	raise TypeError("Object of type %s is not JSON serializable" % o.__class__.__name__)
+
 class Bdict(dict):
 	def __init__(self, *a, **kw):
 		super(Bdict, self).__init__(*a, **kw)
@@ -4276,14 +4287,14 @@ if __name__ == '__main__':
 
 	if options.find_address:
 		addr_data = filter(lambda x:x["addr"] == options.find_address, json_db["keys"]+json_db["pool"])
-		print(json.dumps(list(addr_data), sort_keys=True, indent=4))
+		print(json.dumps(list(addr_data), sort_keys=True, indent=4, default=json_default))
 		exit()
 
 	if options.dump:
 		if options.dumpformat == 'addr':
 			addrs = list(map(lambda x:x["addr"], json_db["keys"]+json_db["pool"]))
 			json_db = addrs
-		wallet = json.dumps(json_db, sort_keys=True, indent=4)
+		wallet = json.dumps(json_db, sort_keys=True, indent=4, default=json_default)
 		print(wallet)
 		exit()
 	elif options.key:
